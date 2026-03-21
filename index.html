@@ -1,5 +1,152 @@
-<html>
-    <body>
-        helo
-    </body>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сумаризатор статей</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div class="container mx-auto px-4 py-8 md:py-16">
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-6 md:p-8 border border-white/20">
+                <h1 class="text-2xl md:text-3xl font-bold text-white text-center mb-6 md:mb-8">
+                    Сумаризатор статей
+                </h1>
+                
+                <div class="space-y-4">
+                    <div>
+                        <input 
+                            type="text" 
+                            id="urlInput" 
+                            placeholder="Вставьте ссылку на статью..."
+                            class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/30 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                        >
+                    </div>
+                    
+                    <button 
+                        id="summarizeBtn"
+                        onclick="summarize()"
+                        class="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    >
+                        Сумаризировать
+                    </button>
+                </div>
+                
+                <div id="resultContainer" class="mt-6 hidden">
+                    <div class="bg-white/5 rounded-xl p-4 md:p-6 border border-white/10">
+                        <h2 class="text-lg font-semibold text-purple-300 mb-3">Краткое содержание:</h2>
+                        <p id="resultText" class="text-gray-200 leading-relaxed whitespace-pre-wrap"></p>
+                    </div>
+                </div>
+                
+                <div id="errorContainer" class="mt-6 hidden">
+                    <div class="bg-red-500/20 rounded-xl p-4 border border-red-500/30">
+                        <p id="errorText" class="text-red-300"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="text-center text-gray-400 text-sm mt-6">
+                Введите ссылку на статью для получения краткого содержания
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/summarize';
+        
+        const urlInput = document.getElementById('urlInput');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const resultContainer = document.getElementById('resultContainer');
+        const resultText = document.getElementById('resultText');
+        const errorContainer = document.getElementById('errorContainer');
+        const errorText = document.getElementById('errorText');
+        
+        let isLoading = false;
+        
+        function setLoading(loading) {
+            isLoading = loading;
+            summarizeBtn.disabled = loading;
+            summarizeBtn.textContent = loading ? 'Загрузка...' : 'Сумаризировать';
+        }
+        
+        function showResult(summary) {
+            resultText.textContent = summary;
+            resultContainer.classList.remove('hidden');
+            errorContainer.classList.add('hidden');
+        }
+        
+        function showError(message) {
+            errorText.textContent = message;
+            errorContainer.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+        }
+        
+        function hideAll() {
+            resultContainer.classList.add('hidden');
+            errorContainer.classList.add('hidden');
+        }
+        
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+        
+        async function summarize() {
+            if (isLoading) return;
+            
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showError('Пожалуйста, введите ссылку на статью.');
+                return;
+            }
+            
+            if (!isValidUrl(url)) {
+                showError('Пожалуйста, введите корректную ссылку.');
+                return;
+            }
+            
+            hideAll();
+            setLoading(true);
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.errorMessage || 'Произошла ошибка при обработке запроса.');
+                }
+                
+                if (data.success && data.summary) {
+                    showResult(data.summary);
+                } else {
+                    throw new Error('Не удалось получить суммаризацию.');
+                }
+            } catch (error) {
+                showError(error.message || 'Не удалось получить суммаризацию. Проверьте ссылку и попробуйте снова.');
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        urlInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                summarize();
+            }
+        });
+    </script>
+</body>
 </html>
